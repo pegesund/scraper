@@ -23,7 +23,7 @@ public class HttpActor extends UntypedActor{
     public void onReceive(Object message) throws Exception {
         if (message instanceof RssEntry) {
             final RssEntry rssEntry = (RssEntry) message;
-            URI uri = rssEntry.uri;
+            URI uri = new URI(rssEntry.url);
 
             AsyncHttpClient asyncHttpClient = new AsyncHttpClient();
             final ActorRef sender = getSender();

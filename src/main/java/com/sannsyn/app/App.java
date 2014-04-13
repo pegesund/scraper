@@ -1,19 +1,19 @@
 package com.sannsyn.app;
 
-import akka.actor.ActorRef;
-import akka.actor.Props;
+import akka.actor.*;
 import akka.routing.RoundRobinPool;
 import akka.util.Timeout;
 import com.mongodb.DB;
 import com.mongodb.MongoClient;
 import com.sannsyn.app.akka.HttpActor;
 import com.sannsyn.app.akka.RssActor;
+import com.sannsyn.app.models.Ptest;
 import com.sun.syndication.feed.synd.SyndFeed;
 import com.sun.syndication.io.SyndFeedInput;
 import com.sun.syndication.io.XmlReader;
 import org.jongo.Jongo;
+import org.jongo.MongoCollection;
 import scala.concurrent.duration.Duration;
-import akka.actor.ActorSystem;
 import akka.actor.ActorRef;
 import akka.actor.Props;
 import static akka.pattern.Patterns.ask;
@@ -25,6 +25,7 @@ import java.net.URL;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import static akka.pattern.Patterns.gracefulStop;
+import static com.sannsyn.app.Factory.*;
 
 import scala.concurrent.Future;
 
@@ -47,9 +48,17 @@ public class App
     public static void main( String[] args ) throws Exception
     {
         System.out.println( "Starting akka" );
-        Factory.startAkka();
-        ActorRef rss = Factory.getSystem().actorOf(Props.create(RssActor.class), "rss");
+        startAkka();
+        ActorRef rss = getSystem().actorOf(Props.create(RssActor.class), "rss");
         System.out.println("Rss actor started");
+        MongoCollection links = Factory.getJongo().getCollection("ptest");
+        Ptest ptest = new Ptest();
+        ptest.nick = "test";
+        ptest.names.add("xx");
+        ptest.names.add("yy");
+        links.insert(ptest);
+
+        /*
         Timeout timeout = new Timeout(Duration.create(1, "seconds"));
         Future<Object> res = ask(rss, "harvest", 10000);
         try {
@@ -60,6 +69,11 @@ public class App
         } catch (Exception e) {
             e.printStackTrace();
         }
+        */
+
+        Cancellable cancellable = getSystem().scheduler().schedule(Duration.Zero(),
+                Duration.create(5, TimeUnit.SECONDS), rss, "harvest",
+                getSystem().dispatcher(), getSystem().lookupRoot());
     }
 
 

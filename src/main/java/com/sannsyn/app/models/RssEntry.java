@@ -10,7 +10,7 @@ import java.net.URI;
  */
 public class RssEntry implements Serializable {
     private ObjectId _id;
-    public URI uri;
+    public String url;
     public String nickname;
     public String category;
     public String subCategory;

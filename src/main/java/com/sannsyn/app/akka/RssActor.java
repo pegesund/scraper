@@ -22,6 +22,7 @@ import com.sun.syndication.feed.synd.SyndEntry;
 import com.sun.syndication.feed.synd.SyndFeed;
 import com.sun.syndication.io.SyndFeedInput;
 import com.sun.syndication.io.XmlReader;
+import org.jongo.MongoCollection;
 
 /**
  * Created by petter on 12.04.14.
@@ -34,9 +35,23 @@ public class RssActor extends UntypedActor {
     int numberOfUrlsToDownload = 0;
 
 
+
+    private boolean alreadyInDb(RssEntry rssEntry) throws Exception {
+        boolean alreadyExists = false;
+        MongoCollection links = Factory.getJongo().getCollection("links");
+        RssEntry e = links.findOne("{url: #}", rssEntry.url).as(RssEntry.class);
+        if (e == null) {
+            links.insert(rssEntry);
+        } else {
+            alreadyExists = true;
+        }
+        return alreadyExists;
+    }
+
+
     private void addAllRss() {
         rssEntries.clear();
-        addOneRss("http://www.dagbladet.no/rss/nyheter/", "nyhter", "", "dagbladet");
+        addOneRss("http://www.dagbladet.no/rss/nyheter/", "nyheter", "", "dagbladet");
     }
 
     /**
@@ -55,13 +70,12 @@ public class RssActor extends UntypedActor {
             SyndFeed feed = input.build(new XmlReader(new URL(url)));
             for (SyndEntry entry : (List<SyndEntry>) feed.getEntries()) {
                 RssEntry rssEntry = new RssEntry();
-                rssEntry.uri = new URI(entry.getLink());
+                rssEntry.url = entry.getLink();
                 rssEntry.category = category;
                 rssEntry.subCategory = subCategory;
                 rssEntry.nickname = nickName;
-                rssEntries.add(rssEntry);
+                if (!alreadyInDb(rssEntry)) rssEntries.add(rssEntry);
             }
-
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -82,12 +96,13 @@ public class RssActor extends UntypedActor {
                 case "harvest":
                     System.out.println("Starting to harvest");
                     if (numberOfUrlsToDownload > 0) {
+                        System.out.println("----- in progress: " + numberOfUrlsToDownload);
                         getSender().tell(new String("In progress"), getSelf());
                     } else {
-                        numberOfUrlsToDownload = rssEntries.size();
                         addAllRss();
+                        numberOfUrlsToDownload = rssEntries.size();
                         for (RssEntry e: rssEntries) {
-                            System.out.println("Message to download: " + e.uri.toString());
+                            System.out.println("Message to download: " + e.url);
                             httpActors.tell(e, getSelf());
                         }
                         getSender().tell(new String("Started"), getSelf());
